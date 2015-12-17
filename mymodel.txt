@@ -1,0 +1,54 @@
+camera camm
+{
+  pixeldim  1000 1000
+  worlddim  10 10
+  viewpoint 5 5 5
+}
+
+material light
+{
+   ambient 0  3 4.5
+}
+
+material dark
+{
+   ambient  1 2 3
+}
+material white
+{
+	ambient 5 5 5
+}
+
+plane backwall
+{
+   material dark
+   normal 0 0  1
+   point  1 0 -4
+}
+
+sphere botleft
+{
+   material white
+   center 1 1 -6
+   radius 5
+}
+
+sphere midleft
+{
+	material white
+	center 1 7 -6
+	radius 4
+}
+sphere topleft
+{
+	material white
+	center 2 9.8 -2
+	radius 2
+}
+
+plane awk
+{
+	material light
+	normal 1 2 3
+	point 1 2 3
+}

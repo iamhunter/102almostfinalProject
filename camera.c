@@ -1,0 +1,220 @@
+//Andrew Hunter
+//CPSC 102
+
+/*  camera.c  */
+/*  camera functions:
+		camera_init() - initializes camera object
+		camera_load_attributes() - loads attributes from input file
+		camera_print() - prints value loaded from input file
+		camera_getdir() - gets unit vector from viewpoint to pixel
+		camera_store_pixel() - stores the converted pixel
+		camera_write_image() - writes image to file
+*/
+
+
+
+#include "ray.h"
+
+
+//=============================================================================
+// ******* camera_init( ) *******
+// 
+// Initializes a camera structure
+// calls camera_load_attributes( )
+//=============================================================================
+
+void camera_init(FILE *in, model_t *model, int attrmax) {
+
+	int attribcount;
+	camera_t *cam = (camera_t *)malloc(sizeof(camera_t));
+
+        cam -> cookie = CAM_COOKIE;
+	attribcount = camera_load_attributes(in,cam);
+	assert(attribcount == 3);
+
+	cam -> pixmap = malloc(sizeof(irgb_t) * cam->pixel_dim[X] * cam->pixel_dim[Y]);
+	model -> cam = cam;
+
+}
+
+
+//=============================================================================
+// ******* camera_load_attributes( ) *******
+//
+// reads the info in from the file that contains the 3 camera
+// 	attributes: pixeldim, worlddim, and viewpoint 
+// attrcount should be 3 after reading in 3 attributes
+//=============================================================================
+
+int camera_load_attributes(FILE *in, camera_t *cam) {
+
+	char attrib_name[16];
+	int count = 0;
+	int attrcount = 0;
+	
+	
+	count = fscanf(in, "%s", cam -> name);
+	assert(count ==1);
+ 
+	count = fscanf(in, "%s", attrib_name);
+	assert(count == 1);
+	assert(attrib_name[0] == '{');
+ 
+  count = fscanf(in, "%s", attrib_name);
+	assert(count == 1);
+	
+	while(attrib_name[0] != '}'){
+	
+	        
+   if(strcmp(attrib_name,"pixeldim") == 0){
+			count = fscanf(in,"%d %d",&cam->pixel_dim[X],&cam->pixel_dim[Y]);
+			assert(count == 2);
+			attrcount += 1;
+			
+		}
+		
+		else if( strcmp( attrib_name, "worlddim" ) == 0 ){
+			count = fscanf(in,"%lf %lf",&cam->world_dim[X],&cam->world_dim[Y]);
+			assert(count == 2);
+			attrcount += 1;
+			
+		}
+		
+		else if(strcmp(attrib_name, "viewpoint") == 0){
+			count = fscanf(in,"%lf %lf %lf",&cam->view_point.x, &cam->view_point.y,&cam->view_point.z);
+			assert(count == 3);
+			attrcount += 1;
+			
+		}		
+		else
+		{
+			fprintf(stderr, "Bad camera attribute: %s %d %d %d\n", attrib_name,cam->pixel_dim[X],cam->pixel_dim[Y],count);
+			exit(1);
+		}	
+		
+		fscanf(in,"%s", attrib_name);
+		
+	}
+	return(attrcount);
+
+}
+
+
+//=============================================================================
+// ******* camera_print( ) *******
+//
+// will print to the file specified by "out"
+// 	the attributes read in from camera.txt 
+//=============================================================================
+void camera_print (camera_t *cam, FILE *out) {
+	assert(cam->cookie == CAM_COOKIE);
+	fprintf(out,"%-12s %c\n","camera",cam -> name[16]);
+	fprintf(out,"%-12s %5d %5d \n","pixeldim",cam->pixel_dim[0],cam->pixel_dim[1]);
+	fprintf(out,"%-12s %5.1lf %5.1lf \n", "worlddim",cam->world_dim[0],cam->world_dim[1]);
+	fprintf(out,"%-12s %5.1lf %5.1lf %5.1lf \n\n", "viewpoint", cam->view_point.x,cam->view_point.y,cam->view_point.z);
+}
+
+
+//=============================================================================
+// ******* camera_getdir( ) *******
+// 
+// computes the unit vector from the viewpoint to the 
+// 	(x,y) pixel coordinates passed in as parameters
+// vec_t *uvec is the resulting unit vector 
+//=============================================================================
+void camera_getdir(camera_t *cam, int x, int y, vec_t *uvec) {
+
+	assert(cam->cookie ==CAM_COOKIE);
+
+	vec_t *world = malloc(sizeof(vec_t));
+
+	world -> x = (((float)x / (cam->pixel_dim[X] -1))*(cam->world_dim[X]));
+	world -> y = (((float)y / (cam->pixel_dim[Y] -1))*(cam->world_dim[Y]));
+	world -> z = 0.0;
+	
+
+	vec_diff(&cam->view_point,world,uvec);
+	vec_unit(uvec,uvec);
+
+}
+
+
+//=============================================================================
+// ******* camera_store_pixel( ) *******
+//
+// converts a pixel from drgb_t to irgb_t and
+// 	stores it in the image associated with the camera 
+//=============================================================================
+void camera_store_pixel(camera_t *cam, int x, int y, drgb_t *pix) {
+
+        int pix_row;
+        irgb_t *new_pix;
+	assert(cam->cookie == CAM_COOKIE);
+	
+	pix->r = pix->r * 255 + 0.5;
+	pix->g = pix->g * 255 + 0.5;
+	pix->b = pix->b * 255 + 0.5;
+	
+	if(pix->r > 255){
+		pix->r = 255;
+	}
+	if (pix->r < 0.0){
+		pix->r = 0.0;
+	}
+	if(pix->g > 255){
+		pix->g = 255;
+	}
+	if (pix->g < 0.0){
+		pix->g = 0.0;
+	}
+	if(pix->b > 255){
+		pix->b = 255;
+	}
+	if (pix->b < 0.0){
+		pix->b = 0.0;
+	}
+	
+	pix_row = cam->pixel_dim[Y] - y - 1;
+        new_pix = cam->pixmap + pix_row * cam->pixel_dim[X] + x;
+
+        
+        
+        new_pix->r = pix->r;
+        new_pix->g = pix->g;
+        new_pix->b = pix->b;
+
+
+}
+
+
+//=============================================================================
+// ******* camera_write_image( ) *******
+//
+// uses the fprintf( ) to write the .ppm header
+// and fwrite() to write the image to the file
+//=============================================================================
+void camera_write_image(camera_t *cam, FILE *out) {
+
+	assert(cam->cookie == CAM_COOKIE);
+	
+	fprintf(out, "P6\n");
+	fprintf(out, "%d %d 255\n", cam->pixel_dim[X], cam->pixel_dim[Y]);
+	fwrite(cam->pixmap, sizeof(irgb_t), cam->pixel_dim[X] * cam->pixel_dim[Y],out);
+	
+	
+	// can use fprintf to print the header to file pointed to by out argument
+	//		don't forget the \n after the 255...
+
+
+
+	// can use a single fwrite statement to write the image pointed to by
+	//		the pixmap pointer in cam, using sizeof each pixel (which is an
+	//		irgb_t), and the X * Y dimensions, to the file pointed to by out
+
+
+
+
+}
+
+
+
